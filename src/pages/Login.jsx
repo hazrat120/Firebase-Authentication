@@ -9,20 +9,56 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast.success("Login successful!");
       navigate("/dashboard");
     } catch (error) {
-      toast.error(error.message);
+      let errorMessage = "Login failed. Please try again.";
+      let errorType = "general";
+
+      switch (error.code) {
+        case "auth/wrong-password":
+          errorMessage =
+            "The password you entered is incorrect. Please try again.";
+          errorType = "password";
+          break;
+        case "auth/user-not-found":
+          errorMessage = "No account found with this email address.";
+          errorType = "email";
+          break;
+        case "auth/invalid-email":
+          errorMessage =
+            "Please enter a valid email address (e.g., user@example.com).";
+          errorType = "email";
+          break;
+        case "auth/too-many-requests":
+          errorMessage =
+            "Too many failed attempts. Please try again later or reset your password.";
+          errorType = "general";
+          break;
+        default:
+          errorMessage = error.message;
+      }
+
+      setError({ message: errorMessage, type: errorType });
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -99,6 +135,34 @@ export default function Login() {
                     >
                       USER LOGIN
                     </h2>
+
+                    {error && (
+                      <div
+                        className={`alert d-flex align-items-center ${
+                          error.type === "email"
+                            ? "alert-warning"
+                            : "alert-danger"
+                        }`}
+                        role="alert"
+                        style={{
+                          borderRadius: "8px",
+                          borderLeft: `4px solid ${
+                            error.type === "email" ? "#ffc107" : "#dc3545"
+                          }`,
+                          padding: "0.75rem 1.25rem",
+                        }}
+                      >
+                        <i
+                          className={`bi ${
+                            error.type === "email"
+                              ? "bi-envelope-exclamation"
+                              : "bi-shield-exclamation"
+                          } me-2`}
+                        ></i>
+                        <div>{error.message}</div>
+                      </div>
+                    )}
+
                     <form onSubmit={handleLogin}>
                       <div className="mb-4">
                         <label
@@ -111,9 +175,13 @@ export default function Login() {
                         <input
                           id="email"
                           type="email"
-                          className="form-control"
+                          className={`form-control ${
+                            error?.type === "email" ? "is-invalid" : ""
+                          }`}
                           style={{
-                            border: "1px solid #e2e8f0",
+                            border: `1px solid ${
+                              error?.type === "email" ? "#ffc107" : "#e2e8f0"
+                            }`,
                             borderRadius: "8px",
                             padding: "12px 15px",
                             backgroundColor: "#f8fafc",
@@ -121,14 +189,18 @@ export default function Login() {
                           }}
                           placeholder="Enter your email"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setError(null);
+                          }}
                           required
                           onFocus={(e) => {
                             e.target.style.borderColor = "#667eea";
                             e.target.style.backgroundColor = "#ffffff";
                           }}
                           onBlur={(e) => {
-                            e.target.style.borderColor = "#e2e8f0";
+                            e.target.style.borderColor =
+                              error?.type === "email" ? "#ffc107" : "#e2e8f0";
                             e.target.style.backgroundColor = "#f8fafc";
                           }}
                         />
@@ -141,30 +213,70 @@ export default function Login() {
                         >
                           Password
                         </label>
-                        <input
-                          id="password"
-                          type="password"
-                          className="form-control"
-                          style={{
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                            padding: "12px 15px",
-                            backgroundColor: "#f8fafc",
-                            transition: "all 0.3s ease",
-                          }}
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                          onFocus={(e) => {
-                            e.target.style.borderColor = "#667eea";
-                            e.target.style.backgroundColor = "#ffffff";
-                          }}
-                          onBlur={(e) => {
-                            e.target.style.borderColor = "#e2e8f0";
-                            e.target.style.backgroundColor = "#f8fafc";
-                          }}
-                        />
+                        <div className="position-relative">
+                          <input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            className={`form-control ${
+                              error?.type === "password" ? "is-invalid" : ""
+                            }`}
+                            style={{
+                              border: `1px solid ${
+                                error?.type === "password"
+                                  ? "#dc3545"
+                                  : "#e2e8f0"
+                              }`,
+                              borderRadius: "8px",
+                              padding: "12px 40px 12px 15px",
+                              backgroundColor: "#f8fafc",
+                              transition: "all 0.3s ease",
+                            }}
+                            placeholder="Enter your password"
+                            value={password}
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              setError(null);
+                            }}
+                            required
+                            onFocus={(e) => {
+                              e.target.style.borderColor = "#667eea";
+                              e.target.style.backgroundColor = "#ffffff";
+                            }}
+                            onBlur={(e) => {
+                              e.target.style.borderColor =
+                                error?.type === "password"
+                                  ? "#dc3545"
+                                  : "#e2e8f0";
+                              e.target.style.backgroundColor = "#f8fafc";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-link position-absolute end-0 top-50 translate-middle-y pe-3"
+                            onClick={togglePasswordVisibility}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#718096",
+                              padding: "0",
+                              zIndex: 5,
+                            }}
+                          >
+                            <i
+                              className={`bi ${
+                                showPassword
+                                  ? "bi-eye-slash-fill"
+                                  : "bi-eye-fill"
+                              }`}
+                            ></i>
+                          </button>
+                        </div>
+                        {error?.type === "password" && (
+                          <div className="mt-2 text-danger small">
+                            <i className="bi bi-info-circle me-1"></i>
+                            Make sure your CAPS LOCK is off and try again
+                          </div>
+                        )}
                       </div>
                       <div className="d-flex justify-content-between align-items-center mb-4">
                         <div className="form-check">
@@ -271,6 +383,12 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Bootstrap Icons */}
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css"
+      />
     </div>
   );
 }
